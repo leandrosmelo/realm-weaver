@@ -2,95 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Dark fantasy RPG theme */
+    --background: 222 47% 6%;
+    --foreground: 45 30% 90%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 222 40% 10%;
+    --card-foreground: 45 30% 90%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 222 45% 8%;
+    --popover-foreground: 45 30% 90%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 45 80% 55%;
+    --primary-foreground: 222 47% 6%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 222 30% 18%;
+    --secondary-foreground: 45 30% 90%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 222 30% 15%;
+    --muted-foreground: 220 15% 55%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 280 60% 45%;
+    --accent-foreground: 45 30% 95%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 45 30% 95%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 222 30% 20%;
+    --input: 222 30% 15%;
+    --ring: 45 80% 55%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Custom RPG colors */
+    --gold: 45 80% 55%;
+    --gold-glow: 45 100% 65%;
+    --gold-dark: 45 70% 35%;
+    --mystic: 280 60% 45%;
+    --mystic-glow: 280 80% 60%;
+    --health: 0 70% 50%;
+    --mana: 210 80% 55%;
+    --stamina: 120 60% 45%;
+    --rare: 210 80% 60%;
+    --epic: 280 70% 55%;
+    --legendary: 45 90% 55%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Glass effect */
+    --glass-bg: 222 40% 10% / 0.8;
+    --glass-border: 45 80% 55% / 0.2;
+    --glass-glow: 45 80% 55% / 0.1;
 
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar */
+    --sidebar-background: 222 45% 8%;
+    --sidebar-foreground: 45 30% 85%;
+    --sidebar-primary: 45 80% 55%;
+    --sidebar-primary-foreground: 222 47% 6%;
+    --sidebar-accent: 222 30% 18%;
+    --sidebar-accent-foreground: 45 30% 90%;
+    --sidebar-border: 222 30% 20%;
+    --sidebar-ring: 45 80% 55%;
   }
 }
 
@@ -100,6 +73,195 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', sans-serif;
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cinzel', serif;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-card/80 backdrop-blur-xl border border-primary/20 rounded-lg;
+    box-shadow: 
+      0 0 20px hsl(var(--gold) / 0.05),
+      inset 0 1px 0 hsl(var(--gold) / 0.1);
+  }
+
+  .glass-panel-accent {
+    @apply bg-card/90 backdrop-blur-xl border border-accent/30 rounded-lg;
+    box-shadow: 
+      0 0 25px hsl(var(--mystic) / 0.1),
+      inset 0 1px 0 hsl(var(--mystic) / 0.15);
+  }
+
+  .rpg-title {
+    @apply font-cinzel text-primary tracking-wider;
+    text-shadow: 0 0 20px hsl(var(--gold-glow) / 0.5);
+  }
+
+  .rpg-border {
+    @apply border-2 border-primary/30 rounded-lg;
+    background: linear-gradient(135deg, 
+      hsl(var(--card)) 0%, 
+      hsl(var(--secondary)) 100%
+    );
+  }
+
+  .glow-gold {
+    box-shadow: 0 0 15px hsl(var(--gold) / 0.4);
+  }
+
+  .glow-mystic {
+    box-shadow: 0 0 15px hsl(var(--mystic) / 0.4);
+  }
+
+  .item-slot {
+    @apply bg-secondary/50 border border-border rounded-md aspect-square flex items-center justify-center;
+    transition: all 0.2s ease;
+  }
+
+  .item-slot:hover {
+    @apply border-primary/50 bg-secondary;
+    box-shadow: 0 0 10px hsl(var(--gold) / 0.2);
+  }
+
+  .item-slot.rare {
+    @apply border-rare/50;
+    box-shadow: 0 0 8px hsl(var(--rare) / 0.3);
+  }
+
+  .item-slot.epic {
+    @apply border-accent/50;
+    box-shadow: 0 0 8px hsl(var(--mystic) / 0.3);
+  }
+
+  .item-slot.legendary {
+    @apply border-primary/70;
+    box-shadow: 0 0 12px hsl(var(--gold) / 0.4);
+  }
+
+  .stat-bar {
+    @apply h-2 rounded-full overflow-hidden bg-muted;
+  }
+
+  .stat-bar-fill {
+    @apply h-full rounded-full transition-all duration-500;
+  }
+
+  .stat-bar-health .stat-bar-fill {
+    @apply bg-gradient-to-r from-red-600 to-red-400;
+  }
+
+  .stat-bar-mana .stat-bar-fill {
+    @apply bg-gradient-to-r from-blue-600 to-blue-400;
+  }
+
+  .stat-bar-stamina .stat-bar-fill {
+    @apply bg-gradient-to-r from-green-600 to-green-400;
+  }
+
+  .stat-bar-xp .stat-bar-fill {
+    @apply bg-gradient-to-r from-amber-600 to-amber-400;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200;
+    @apply text-muted-foreground hover:text-foreground hover:bg-secondary/50;
+  }
+
+  .nav-item.active {
+    @apply text-primary bg-primary/10 border-l-2 border-primary;
+  }
+
+  .quest-item {
+    @apply p-3 rounded-lg bg-secondary/30 border border-border/50 hover:border-primary/30 transition-all cursor-pointer;
+  }
+
+  .skill-node {
+    @apply w-14 h-14 rounded-full border-2 border-border flex items-center justify-center bg-secondary/50 transition-all;
+  }
+
+  .skill-node:hover {
+    @apply border-primary/50 scale-105;
+    box-shadow: 0 0 15px hsl(var(--gold) / 0.3);
+  }
+
+  .skill-node.unlocked {
+    @apply border-primary bg-primary/20;
+    box-shadow: 0 0 10px hsl(var(--gold) / 0.4);
+  }
+
+  .skill-node.locked {
+    @apply opacity-50;
+  }
+
+  .chat-bubble {
+    @apply max-w-[80%] p-3 rounded-lg;
+  }
+
+  .chat-bubble.npc {
+    @apply bg-accent/20 border border-accent/30 rounded-tl-none;
+  }
+
+  .chat-bubble.player {
+    @apply bg-primary/20 border border-primary/30 rounded-tr-none ml-auto;
+  }
+}
+
+@layer utilities {
+  .font-cinzel {
+    font-family: 'Cinzel', serif;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary) / 0.3) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.3);
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.5);
+  }
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px hsl(var(--gold) / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 25px hsl(var(--gold) / 0.5);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
 }
