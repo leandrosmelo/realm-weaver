@@ -18,61 +18,52 @@ export function StatusBars({
   maxStamina = 100 
 }: Partial<StatusBarsProps>) {
   return (
-    <div className="glass-panel p-4 space-y-3">
+    <div className="flex items-center gap-6">
       {/* Health */}
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
-          <Heart className="w-4 h-4 text-red-400 fill-red-400" />
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="w-7 h-7 rounded-lg bg-red-500/20 flex items-center justify-center shrink-0">
+          <Heart className="w-3.5 h-3.5 text-red-400 fill-red-400" />
         </div>
-        <div className="flex-1">
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-muted-foreground">Health</span>
-            <span className="text-red-400">{health}/{maxHealth}</span>
-          </div>
-          <div className="stat-bar stat-bar-health">
+        <div className="flex items-center gap-2">
+          <div className="stat-bar stat-bar-health w-24">
             <div 
               className="stat-bar-fill" 
               style={{ width: `${(health / maxHealth) * 100}%` }}
             />
           </div>
+          <span className="text-xs text-red-400 whitespace-nowrap">{health}/{maxHealth}</span>
         </div>
       </div>
 
       {/* Mana */}
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-          <Zap className="w-4 h-4 text-blue-400" />
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
+          <Zap className="w-3.5 h-3.5 text-blue-400" />
         </div>
-        <div className="flex-1">
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-muted-foreground">Mana</span>
-            <span className="text-blue-400">{mana}/{maxMana}</span>
-          </div>
-          <div className="stat-bar stat-bar-mana">
+        <div className="flex items-center gap-2">
+          <div className="stat-bar stat-bar-mana w-24">
             <div 
               className="stat-bar-fill" 
               style={{ width: `${(mana / maxMana) * 100}%` }}
             />
           </div>
+          <span className="text-xs text-blue-400 whitespace-nowrap">{mana}/{maxMana}</span>
         </div>
       </div>
 
       {/* Stamina */}
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
-          <Star className="w-4 h-4 text-green-400" />
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="w-7 h-7 rounded-lg bg-green-500/20 flex items-center justify-center shrink-0">
+          <Star className="w-3.5 h-3.5 text-green-400" />
         </div>
-        <div className="flex-1">
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-muted-foreground">Stamina</span>
-            <span className="text-green-400">{stamina}/{maxStamina}</span>
-          </div>
-          <div className="stat-bar stat-bar-stamina">
+        <div className="flex items-center gap-2">
+          <div className="stat-bar stat-bar-stamina w-24">
             <div 
               className="stat-bar-fill" 
               style={{ width: `${(stamina / maxStamina) * 100}%` }}
             />
           </div>
+          <span className="text-xs text-green-400 whitespace-nowrap">{stamina}/{maxStamina}</span>
         </div>
       </div>
     </div>
