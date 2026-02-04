@@ -9,14 +9,17 @@ import { QuestsPanel } from "@/components/game/QuestsPanel";
 import { InventoryPanel } from "@/components/game/InventoryPanel";
 import { SkillsPanel } from "@/components/game/SkillsPanel";
 import { StatusBars } from "@/components/game/StatusBars";
+import { MapPanel } from "@/components/game/MapPanel";
 
 const Index = () => {
-  const [activePanel, setActivePanel] = useState("chat");
+  const [activePanel, setActivePanel] = useState("map");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [chatExpanded, setChatExpanded] = useState(false);
 
   const renderPanel = () => {
     switch (activePanel) {
-      case "chat":
-        return <ChatPanel />;
+      case "map":
+        return <MapPanel />;
       case "user":
         return <UserPanel />;
       case "admin":
@@ -32,28 +35,37 @@ const Index = () => {
       case "skills":
         return <SkillsPanel />;
       default:
-        return <ChatPanel />;
+        return <MapPanel />;
     }
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="h-screen flex bg-background overflow-hidden">
       {/* Sidebar */}
-      <GameSidebar activePanel={activePanel} onPanelChange={setActivePanel} />
+      <GameSidebar 
+        activePanel={activePanel} 
+        onPanelChange={setActivePanel}
+        collapsed={sidebarCollapsed}
+        onCollapsedChange={setSidebarCollapsed}
+      />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar with Status */}
-        <header className="p-4 border-b border-primary/20">
-          <div className="max-w-md">
-            <StatusBars />
-          </div>
+        {/* Top Bar with Inline Status */}
+        <header className="px-4 py-2 border-b border-primary/20 glass-panel shrink-0">
+          <StatusBars />
         </header>
 
         {/* Panel Content */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-auto">
           {renderPanel()}
         </div>
+
+        {/* Chat Panel at Bottom */}
+        <ChatPanel 
+          expanded={chatExpanded} 
+          onExpandedChange={setChatExpanded} 
+        />
       </main>
     </div>
   );
