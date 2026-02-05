@@ -18,6 +18,7 @@ const menuItems = [
   { id: "quests", label: "Quests", icon: Scroll },
   { id: "inventory", label: "Inventory", icon: Backpack },
   { id: "skills", label: "Skills", icon: Sparkles },
+  { id: "lore", label: "Lore", icon: Scroll },
   { id: "saves", label: "Game Saves", icon: Save },
   { id: "admin", label: "Admin", icon: Shield },
 ];
