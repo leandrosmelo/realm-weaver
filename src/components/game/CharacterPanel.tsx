@@ -1,8 +1,17 @@
 import { useState } from "react";
-import { Sword, Shield, Heart, Zap, Brain, Eye, ChevronUp, ChevronDown } from "lucide-react";
+import { Sword, Shield, Heart, Zap, Brain, Eye, ChevronUp, ChevronDown, Edit2, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Stat {
   name: string;
@@ -30,9 +39,27 @@ const equipment = [
   { slot: "Ring", item: "Ring of Protection", rarity: "rare" },
 ];
 
+const characterClasses = ["Warrior", "Mage", "Rogue", "Paladin", "Ranger", "Necromancer"];
+const spiritCollections = ["None", "Phoenix Flames", "Shadow Wraith", "Storm Guardian", "Forest Spirit", "Ice Dragon"];
+
+interface CharacterInfo {
+  name: string;
+  bio: string;
+  characterClass: string;
+  spiritCollection: string;
+}
+
 export function CharacterPanel() {
   const [stats, setStats] = useState(baseStats);
   const [availablePoints, setAvailablePoints] = useState(5);
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [characterInfo, setCharacterInfo] = useState<CharacterInfo>({
+    name: "ShadowKnight",
+    bio: "A legendary warrior who emerged from the shadows of the fallen kingdom, seeking redemption and glory.",
+    characterClass: "Warrior",
+    spiritCollection: "None",
+  });
+  const [editForm, setEditForm] = useState<CharacterInfo>(characterInfo);
 
   const increaseStat = (index: number) => {
     if (availablePoints > 0 && stats[index].value < stats[index].maxValue) {
@@ -61,6 +88,20 @@ export function CharacterPanel() {
     }
   };
 
+  const handleEditInfo = () => {
+    setEditForm(characterInfo);
+    setIsEditingInfo(true);
+  };
+
+  const handleSaveInfo = () => {
+    setCharacterInfo(editForm);
+    setIsEditingInfo(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingInfo(false);
+  };
+
   return (
     <ScrollArea className="h-full">
       <div className="p-6 space-y-6">
@@ -70,29 +111,106 @@ export function CharacterPanel() {
         </div>
 
         {/* Character Preview */}
-        <div className="glass-panel p-6 flex items-center gap-6">
-          <div className="w-32 h-40 rounded-lg bg-gradient-to-b from-secondary to-muted flex items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent" />
-            <Sword className="w-16 h-16 text-primary animate-float" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-cinzel text-xl mb-1">ShadowKnight</h3>
-            <p className="text-sm text-muted-foreground mb-3">Level 42 Warrior</p>
-            <div className="grid grid-cols-3 gap-3 text-sm">
-              <div>
-                <p className="text-muted-foreground">Class</p>
-                <p className="font-medium">Warrior</p>
+        <div className="glass-panel p-6">
+          {isEditingInfo ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-cinzel text-lg">Edit Character</h3>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={handleCancelEdit}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" onClick={handleSaveInfo}>
+                    <Save className="w-4 h-4 mr-1" /> Save
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-muted-foreground">Name</label>
+                  <Input
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground">Class</label>
+                  <Select 
+                    value={editForm.characterClass}
+                    onValueChange={(value) => setEditForm({ ...editForm, characterClass: value })}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border-primary/20">
+                      {characterClasses.map((cls) => (
+                        <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div>
-                <p className="text-muted-foreground">Race</p>
-                <p className="font-medium">Human</p>
+                <label className="text-sm text-muted-foreground">Bio</label>
+                <Textarea
+                  value={editForm.bio}
+                  onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                  className="mt-1"
+                  rows={3}
+                />
               </div>
               <div>
-                <p className="text-muted-foreground">Guild</p>
-                <p className="font-medium">Shadow Legion</p>
+                <label className="text-sm text-muted-foreground">Spirit Collection (Optional)</label>
+                <Select 
+                  value={editForm.spiritCollection}
+                  onValueChange={(value) => setEditForm({ ...editForm, spiritCollection: value })}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border-primary/20">
+                    {spiritCollections.map((spirit) => (
+                      <SelectItem key={spirit} value={spirit}>{spirit}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-start gap-6">
+              <div className="w-32 h-40 rounded-lg bg-gradient-to-b from-secondary to-muted flex items-center justify-center relative overflow-hidden shrink-0">
+                <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent" />
+                <Sword className="w-16 h-16 text-primary animate-float" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-cinzel text-xl mb-1">{characterInfo.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-3">Level 42 {characterInfo.characterClass}</p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={handleEditInfo}>
+                    <Edit2 className="w-4 h-4 mr-1" /> Edit
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">{characterInfo.bio}</p>
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Class</p>
+                    <p className="font-medium">{characterInfo.characterClass}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Race</p>
+                    <p className="font-medium">Human</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Spirit</p>
+                    <p className="font-medium">{characterInfo.spiritCollection === "None" ? "—" : characterInfo.spiritCollection}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <Tabs defaultValue="stats" className="w-full">
