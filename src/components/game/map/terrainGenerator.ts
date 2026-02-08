@@ -142,27 +142,63 @@ export function getTileColor(col: number, row: number, terrain: TerrainType): st
   return colors[idx];
 }
 
+import type { BuildingType } from "./buildingRenderer";
+
 // Special locations on the map
 export interface MapLocation {
   col: number;
   row: number;
   name: string;
-  type: "town" | "dungeon" | "mine" | "forest" | "boss" | "mountain";
+  type: "town" | "dungeon" | "mine" | "forest" | "boss" | "mountain" | "castle" | "farm" | "tavern" | "temple" | "tower";
+  building: BuildingType;
   discovered: boolean;
-  icon: string;
 }
 
 export const MAP_LOCATIONS: MapLocation[] = [
-  { col: 80, row: 100, name: "Elderwood Village", type: "town", discovered: true, icon: "🏰" },
-  { col: 300, row: 80, name: "Shadow Keep", type: "dungeon", discovered: true, icon: "💀" },
-  { col: 200, row: 250, name: "Crystal Caverns", type: "mine", discovered: true, icon: "💎" },
-  { col: 380, row: 350, name: "Misty Mountains", type: "mountain", discovered: false, icon: "⛰️" },
-  { col: 120, row: 350, name: "Ancient Forest", type: "forest", discovered: true, icon: "🌲" },
-  { col: 250, row: 50, name: "Dragon's Lair", type: "boss", discovered: false, icon: "🐉" },
-  { col: 400, row: 200, name: "Forgotten Temple", type: "dungeon", discovered: true, icon: "🏛️" },
-  { col: 60, row: 220, name: "Mystic Lake", type: "forest", discovered: true, icon: "🌊" },
-  { col: 320, row: 420, name: "Obsidian Fortress", type: "dungeon", discovered: false, icon: "🏴" },
-  { col: 180, row: 150, name: "Trader's Rest", type: "town", discovered: true, icon: "🏪" },
+  // Towns & Cities
+  { col: 80, row: 100, name: "Elderwood Village", type: "town", building: "city", discovered: true },
+  { col: 180, row: 150, name: "Trader's Rest", type: "town", building: "tavern", discovered: true },
+  { col: 350, row: 120, name: "Port Ashford", type: "town", building: "city", discovered: true },
+  { col: 130, row: 280, name: "Willowbrook", type: "town", building: "city", discovered: true },
+
+  // Castles
+  { col: 250, row: 200, name: "Ironhold Fortress", type: "castle", building: "castle", discovered: true },
+  { col: 400, row: 80, name: "Storm Keep", type: "castle", building: "castle", discovered: false },
+  { col: 60, row: 400, name: "Moonwatch Citadel", type: "castle", building: "castle", discovered: true },
+
+  // Farms
+  { col: 100, row: 120, name: "Green Meadow Farm", type: "farm", building: "farm", discovered: true },
+  { col: 200, row: 100, name: "Sunflower Fields", type: "farm", building: "farm", discovered: true },
+  { col: 160, row: 180, name: "Old Mill Farm", type: "farm", building: "farm", discovered: true },
+  { col: 320, row: 150, name: "Riverside Ranch", type: "farm", building: "farm", discovered: true },
+
+  // Houses & Taverns
+  { col: 110, row: 85, name: "Hermit's Cottage", type: "tavern", building: "house", discovered: true },
+  { col: 220, row: 170, name: "Crossroads Inn", type: "tavern", building: "tavern", discovered: true },
+  { col: 300, row: 250, name: "Wayfarer's Lodge", type: "tavern", building: "tavern", discovered: true },
+  { col: 420, row: 300, name: "Lonely Cabin", type: "tavern", building: "house", discovered: false },
+  { col: 50, row: 180, name: "Lakeside Tavern", type: "tavern", building: "tavern", discovered: true },
+
+  // Temples & Towers
+  { col: 400, row: 200, name: "Forgotten Temple", type: "temple", building: "temple", discovered: true },
+  { col: 280, row: 60, name: "Arcane Spire", type: "tower", building: "tower", discovered: true },
+  { col: 150, row: 350, name: "Shrine of Dawn", type: "temple", building: "temple", discovered: true },
+  { col: 450, row: 450, name: "Watchtower", type: "tower", building: "tower", discovered: false },
+
+  // Mines & Dungeons
+  { col: 200, row: 250, name: "Crystal Caverns", type: "mine", building: "mine", discovered: true },
+  { col: 300, row: 80, name: "Shadow Keep", type: "dungeon", building: "dungeon", discovered: true },
+  { col: 320, row: 420, name: "Obsidian Fortress", type: "dungeon", building: "dungeon", discovered: false },
+  { col: 440, row: 160, name: "Deeprock Mine", type: "mine", building: "mine", discovered: true },
+
+  // Boss Lairs
+  { col: 250, row: 50, name: "Dragon's Lair", type: "boss", building: "boss_lair", discovered: false },
+  { col: 450, row: 400, name: "The Abyss", type: "boss", building: "boss_lair", discovered: false },
+
+  // Forests & Mountains
+  { col: 120, row: 350, name: "Ancient Forest", type: "forest", building: "house", discovered: true },
+  { col: 380, row: 350, name: "Misty Mountains", type: "mountain", building: "mine", discovered: false },
+  { col: 60, row: 220, name: "Mystic Lake Lodge", type: "tavern", building: "house", discovered: true },
 ];
 
-export const PLAYER_POSITION = { col: 80, row: 100 };
+export const PLAYER_START = { col: 80, row: 100 };

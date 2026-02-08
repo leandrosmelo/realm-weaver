@@ -5,16 +5,23 @@ import {
   TERRAIN_EDGE_COLORS,
   TERRAIN_SHADOW_COLORS,
   MAP_LOCATIONS,
-  PLAYER_POSITION,
+  PLAYER_START,
   TerrainType,
   type MapLocation,
 } from "./terrainGenerator";
+import { drawBuilding } from "./buildingRenderer";
+import {
+  createPlayerState,
+  updatePlayer,
+  drawPlayer,
+  isWalkable,
+  type PlayerState,
+  type KeyState,
+} from "./playerController";
 
 const MAP_SIZE = 500;
 const TILE_W = 32;
 const TILE_H = 16;
-
-// Chunk-based caching
 const CHUNK_SIZE = 16;
 
 interface ChunkData {
@@ -23,12 +30,8 @@ interface ChunkData {
 
 const chunkCache = new Map<string, ChunkData>();
 
-function getChunkKey(cx: number, cy: number): string {
-  return `${cx},${cy}`;
-}
-
 function getChunk(cx: number, cy: number, seed: number): ChunkData {
-  const key = getChunkKey(cx, cy);
+  const key = `${cx},${cy}`;
   if (chunkCache.has(key)) return chunkCache.get(key)!;
 
   const terrain: TerrainType[][] = [];
@@ -53,14 +56,12 @@ function getChunk(cx: number, cy: number, seed: number): ChunkData {
   return chunk;
 }
 
-// Isometric projection
 function toScreen(col: number, row: number, zoom: number): [number, number] {
   const x = (col - row) * (TILE_W / 2) * zoom;
   const y = (col + row) * (TILE_H / 2) * zoom;
   return [x, y];
 }
 
-// Reverse projection
 function toTile(sx: number, sy: number, zoom: number): [number, number] {
   const tw = (TILE_W / 2) * zoom;
   const th = (TILE_H / 2) * zoom;
@@ -69,7 +70,6 @@ function toTile(sx: number, sy: number, zoom: number): [number, number] {
   return [Math.floor(col), Math.floor(row)];
 }
 
-// Draw a single isometric tile
 function drawTile(
   ctx: CanvasRenderingContext2D,
   sx: number,
@@ -84,7 +84,6 @@ function drawTile(
   const th = (TILE_H / 2) * zoom;
   const h = height * zoom;
 
-  // Top face
   ctx.beginPath();
   ctx.moveTo(sx, sy - h - th);
   ctx.lineTo(sx + tw, sy - h);
@@ -94,7 +93,6 @@ function drawTile(
   ctx.fillStyle = fillColor;
   ctx.fill();
 
-  // Draw pixel-art style edges (right face)
   if (height > 0) {
     ctx.beginPath();
     ctx.moveTo(sx, sy - h + th);
@@ -105,7 +103,6 @@ function drawTile(
     ctx.fillStyle = shadowColor;
     ctx.fill();
 
-    // Left face
     ctx.beginPath();
     ctx.moveTo(sx, sy - h + th);
     ctx.lineTo(sx - tw, sy - h);
@@ -116,7 +113,6 @@ function drawTile(
     ctx.fill();
   }
 
-  // Top face edge lines for pixel art feel
   ctx.beginPath();
   ctx.moveTo(sx, sy - h - th);
   ctx.lineTo(sx + tw, sy - h);
@@ -149,284 +145,332 @@ export function IsometricCanvas({ className }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animFrameRef = useRef<number>(0);
+  const lastTimeRef = useRef<number>(0);
 
   const cameraRef = useRef({ x: 0, y: 0, zoom: 0.8 });
   const dragRef = useRef({ dragging: false, lastX: 0, lastY: 0 });
+  const keysRef = useRef<KeyState>({ up: false, down: false, left: false, right: false });
+  const playerRef = useRef<PlayerState>(createPlayerState(PLAYER_START.col, PLAYER_START.row));
+  const followPlayerRef = useRef(true);
+
   const [hoveredTile, setHoveredTile] = useState<[number, number] | null>(null);
   const [hoveredLocation, setHoveredLocation] = useState<MapLocation | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<MapLocation | null>(null);
+  const [playerPos, setPlayerPos] = useState({ col: PLAYER_START.col, row: PLAYER_START.row });
 
   const seed = 42;
 
   // Center camera on player at start
   useEffect(() => {
-    const [px, py] = toScreen(PLAYER_POSITION.col, PLAYER_POSITION.row, 1);
+    const [px, py] = toScreen(PLAYER_START.col, PLAYER_START.row, 1);
     cameraRef.current.x = -px;
     cameraRef.current.y = -py;
   }, []);
 
-  const render = useCallback(() => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-
-    if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      canvas.style.width = `${w}px`;
-      canvas.style.height = `${h}px`;
-    }
-
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    // Clear with background
-    ctx.fillStyle = "#0d1117";
-    ctx.fillRect(0, 0, w, h);
-
-    const cam = cameraRef.current;
-    const cx = w / 2 + cam.x;
-    const cy = h / 2 + cam.y;
-
-    // Calculate visible tile range
-    const margin = 4;
-    const corners = [
-      toTile(-cx, -cy, cam.zoom),
-      toTile(w - cx, -cy, cam.zoom),
-      toTile(-cx, h - cy, cam.zoom),
-      toTile(w - cx, h - cy, cam.zoom),
-    ];
-
-    let minCol = MAP_SIZE, maxCol = 0, minRow = MAP_SIZE, maxRow = 0;
-    for (const [c, r] of corners) {
-      minCol = Math.min(minCol, c);
-      maxCol = Math.max(maxCol, c);
-      minRow = Math.min(minRow, r);
-      maxRow = Math.max(maxRow, r);
-    }
-
-    minCol = Math.max(0, minCol - margin);
-    maxCol = Math.min(MAP_SIZE - 1, maxCol + margin);
-    minRow = Math.max(0, minRow - margin);
-    maxRow = Math.min(MAP_SIZE - 1, maxRow + margin);
-
-    // Determine which chunks are needed
-    const startChunkCol = Math.floor(minCol / CHUNK_SIZE);
-    const endChunkCol = Math.floor(maxCol / CHUNK_SIZE);
-    const startChunkRow = Math.floor(minRow / CHUNK_SIZE);
-    const endChunkRow = Math.floor(maxRow / CHUNK_SIZE);
-
-    // Draw tiles (painter's algorithm: back to front)
-    for (let row = minRow; row <= maxRow; row++) {
-      for (let col = minCol; col <= maxCol; col++) {
-        const chunkX = Math.floor(col / CHUNK_SIZE);
-        const chunkY = Math.floor(row / CHUNK_SIZE);
-        const chunk = getChunk(chunkX, chunkY, seed);
-        const localCol = col % CHUNK_SIZE;
-        const localRow = row % CHUNK_SIZE;
-        const terrain = chunk.terrain[localRow]?.[localCol] ?? TerrainType.DeepWater;
-
-        const [sx, sy] = toScreen(col, row, cam.zoom);
-        const screenX = sx + cx;
-        const screenY = sy + cy;
-
-        // Skip tiles clearly off screen
-        if (screenX < -TILE_W * cam.zoom || screenX > w + TILE_W * cam.zoom) continue;
-        if (screenY < -40 * cam.zoom || screenY > h + 40 * cam.zoom) continue;
-
-        const height = getTerrainHeight(terrain);
-        const color = getTileColor(col, row, terrain);
-        const edge = TERRAIN_EDGE_COLORS[terrain];
-        const shadow = TERRAIN_SHADOW_COLORS[terrain];
-
-        drawTile(ctx, screenX, screenY, cam.zoom, color, edge, shadow, Math.max(0, height));
-
-        // Highlight hovered tile
-        if (hoveredTile && hoveredTile[0] === col && hoveredTile[1] === row) {
-          ctx.beginPath();
-          const tw = (TILE_W / 2) * cam.zoom;
-          const th = (TILE_H / 2) * cam.zoom;
-          const hOff = Math.max(0, height) * cam.zoom;
-          ctx.moveTo(screenX, screenY - hOff - th);
-          ctx.lineTo(screenX + tw, screenY - hOff);
-          ctx.lineTo(screenX, screenY - hOff + th);
-          ctx.lineTo(screenX - tw, screenY - hOff);
-          ctx.closePath();
-          ctx.strokeStyle = "#d4a844";
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          ctx.fillStyle = "rgba(212, 168, 68, 0.15)";
-          ctx.fill();
-        }
+  // Keyboard listeners
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const k = keysRef.current;
+      switch (e.key) {
+        case "w": case "W": case "ArrowUp": k.up = true; e.preventDefault(); break;
+        case "s": case "S": case "ArrowDown": k.down = true; e.preventDefault(); break;
+        case "a": case "A": case "ArrowLeft": k.left = true; e.preventDefault(); break;
+        case "d": case "D": case "ArrowRight": k.right = true; e.preventDefault(); break;
       }
-    }
+      followPlayerRef.current = true;
+    };
 
-    // Draw location markers
-    for (const loc of MAP_LOCATIONS) {
-      if (loc.col < minCol - 5 || loc.col > maxCol + 5) continue;
-      if (loc.row < minRow - 5 || loc.row > maxRow + 5) continue;
-
-      const [sx, sy] = toScreen(loc.col, loc.row, cam.zoom);
-      const screenX = sx + cx;
-      const screenY = sy + cy;
-      const terrain = getTerrainAt(loc.col, loc.row, seed);
-      const h = Math.max(0, getTerrainHeight(terrain)) * cam.zoom;
-
-      const isPlayer = loc.col === PLAYER_POSITION.col && loc.row === PLAYER_POSITION.row;
-      const isHovered = hoveredLocation?.col === loc.col && hoveredLocation?.row === loc.row;
-      const isSelected = selectedLocation?.col === loc.col && selectedLocation?.row === loc.row;
-
-      // Marker glow
-      const markerSize = (isHovered || isSelected ? 20 : 16) * cam.zoom;
-      ctx.beginPath();
-      ctx.arc(screenX, screenY - h - markerSize, markerSize * 0.8, 0, Math.PI * 2);
-      ctx.fillStyle = loc.discovered
-        ? isPlayer
-          ? "rgba(212, 168, 68, 0.4)"
-          : isHovered || isSelected
-            ? "rgba(212, 168, 68, 0.3)"
-            : "rgba(100, 100, 120, 0.5)"
-        : "rgba(50, 50, 60, 0.3)";
-      ctx.fill();
-
-      // Marker border
-      ctx.strokeStyle = loc.discovered
-        ? isPlayer ? "#d4a844" : "rgba(212, 168, 68, 0.6)"
-        : "rgba(100, 100, 120, 0.3)";
-      ctx.lineWidth = isPlayer ? 2.5 : 1.5;
-      ctx.stroke();
-
-      // Icon emoji
-      const fontSize = Math.max(10, Math.round(14 * cam.zoom));
-      ctx.font = `${fontSize}px sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(
-        loc.discovered ? loc.icon : "❓",
-        screenX,
-        screenY - h - markerSize
-      );
-
-      // Player pulse ring
-      if (isPlayer) {
-        const t = (Date.now() % 2000) / 2000;
-        const pulseR = markerSize * (1 + t * 0.6);
-        ctx.beginPath();
-        ctx.arc(screenX, screenY - h - markerSize, pulseR, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(212, 168, 68, ${0.5 * (1 - t)})`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const k = keysRef.current;
+      switch (e.key) {
+        case "w": case "W": case "ArrowUp": k.up = false; break;
+        case "s": case "S": case "ArrowDown": k.down = false; break;
+        case "a": case "A": case "ArrowLeft": k.left = false; break;
+        case "d": case "D": case "ArrowRight": k.right = false; break;
       }
+    };
 
-      // Name label
-      if ((isHovered || isSelected || isPlayer) && loc.discovered) {
-        const labelFont = Math.max(9, Math.round(11 * cam.zoom));
-        ctx.font = `bold ${labelFont}px 'Inter', sans-serif`;
-        ctx.textAlign = "center";
-        
-        const text = loc.name;
-        const metrics = ctx.measureText(text);
-        const px = 6 * cam.zoom;
-        const py = 3 * cam.zoom;
-        const lx = screenX;
-        const ly = screenY - h - markerSize * 2.2;
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
 
-        ctx.fillStyle = "rgba(13, 17, 23, 0.85)";
-        ctx.beginPath();
-        ctx.roundRect(
-          lx - metrics.width / 2 - px,
-          ly - labelFont / 2 - py,
-          metrics.width + px * 2,
-          labelFont + py * 2,
-          4
-        );
-        ctx.fill();
-        ctx.strokeStyle = "rgba(212, 168, 68, 0.5)";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        ctx.fillStyle = "#d4a844";
-        ctx.fillText(text, lx, ly);
-
-        // Type label
-        ctx.font = `${Math.max(7, Math.round(9 * cam.zoom))}px 'Inter', sans-serif`;
-        ctx.fillStyle = "rgba(180, 180, 200, 0.7)";
-        ctx.fillText(loc.type.toUpperCase(), lx, ly + labelFont + 2);
-      }
-    }
-
-    // Minimap
-    const miniW = 120;
-    const miniH = 120;
-    const miniX = w - miniW - 12;
-    const miniY = 12;
-    
-    ctx.fillStyle = "rgba(13, 17, 23, 0.8)";
-    ctx.strokeStyle = "rgba(212, 168, 68, 0.3)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(miniX, miniY, miniW, miniH, 6);
-    ctx.fill();
-    ctx.stroke();
-
-    // Mini viewport indicator
-    const viewScale = miniW / MAP_SIZE;
-    const viewCenterCol = (minCol + maxCol) / 2;
-    const viewCenterRow = (minRow + maxRow) / 2;
-    const viewW = (maxCol - minCol) * viewScale;
-    const viewH = (maxRow - minRow) * viewScale;
-    
-    ctx.strokeStyle = "rgba(212, 168, 68, 0.6)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(
-      miniX + viewCenterCol * viewScale - viewW / 2,
-      miniY + viewCenterRow * viewScale - viewH / 2,
-      viewW,
-      viewH
-    );
-
-    // Mini location dots
-    for (const loc of MAP_LOCATIONS) {
-      if (!loc.discovered) continue;
-      const mx = miniX + loc.col * viewScale;
-      const my = miniY + loc.row * viewScale;
-      const isPlayer = loc.col === PLAYER_POSITION.col && loc.row === PLAYER_POSITION.row;
-      
-      ctx.beginPath();
-      ctx.arc(mx, my, isPlayer ? 3 : 2, 0, Math.PI * 2);
-      ctx.fillStyle = isPlayer ? "#d4a844" : "rgba(212, 168, 68, 0.5)";
-      ctx.fill();
-    }
-
-    // Coordinate display
-    if (hoveredTile) {
-      ctx.font = "11px 'Inter', sans-serif";
-      ctx.textAlign = "left";
-      ctx.fillStyle = "rgba(180, 180, 200, 0.7)";
-      ctx.fillText(`Tile: ${hoveredTile[0]}, ${hoveredTile[1]}`, 12, h - 12);
-    }
-  }, [hoveredTile, hoveredLocation, selectedLocation]);
-
-  // Animation loop
+  // Main render + game loop
   useEffect(() => {
     let running = true;
-    const loop = () => {
+
+    const loop = (timestamp: number) => {
       if (!running) return;
-      render();
+
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
+      if (!canvas || !container) {
+        animFrameRef.current = requestAnimationFrame(loop);
+        return;
+      }
+
+      // Delta time
+      const dt = lastTimeRef.current ? Math.min((timestamp - lastTimeRef.current) / 1000, 0.1) : 0.016;
+      lastTimeRef.current = timestamp;
+
+      // Update player
+      const keys = keysRef.current;
+      playerRef.current = updatePlayer(playerRef.current, keys, dt, seed);
+      const player = playerRef.current;
+
+      // Update React state sparingly (every ~10 frames)
+      if (Math.round(timestamp) % 5 === 0) {
+        setPlayerPos({ col: player.col, row: player.row });
+      }
+
+      // Camera follow
+      if (followPlayerRef.current) {
+        const [px, py] = toScreen(player.visualCol, player.visualRow, 1);
+        const targetX = -px;
+        const targetY = -py;
+        cameraRef.current.x += (targetX - cameraRef.current.x) * 0.08;
+        cameraRef.current.y += (targetY - cameraRef.current.y) * 0.08;
+      }
+
+      // Render
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { animFrameRef.current = requestAnimationFrame(loop); return; }
+
+      const dpr = window.devicePixelRatio || 1;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+
+      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.width = `${w}px`;
+        canvas.style.height = `${h}px`;
+      }
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = "#0d1117";
+      ctx.fillRect(0, 0, w, h);
+
+      const cam = cameraRef.current;
+      const cx = w / 2 + cam.x * cam.zoom;
+      const cy = h / 2 + cam.y * cam.zoom;
+
+      // Visible tile range
+      const margin = 4;
+      const corners = [
+        toTile(-cx, -cy, cam.zoom),
+        toTile(w - cx, -cy, cam.zoom),
+        toTile(-cx, h - cy, cam.zoom),
+        toTile(w - cx, h - cy, cam.zoom),
+      ];
+
+      let minCol = MAP_SIZE, maxCol = 0, minRow = MAP_SIZE, maxRow = 0;
+      for (const [c, r] of corners) {
+        minCol = Math.min(minCol, c);
+        maxCol = Math.max(maxCol, c);
+        minRow = Math.min(minRow, r);
+        maxRow = Math.max(maxRow, r);
+      }
+
+      minCol = Math.max(0, minCol - margin);
+      maxCol = Math.min(MAP_SIZE - 1, maxCol + margin);
+      minRow = Math.max(0, minRow - margin);
+      maxRow = Math.min(MAP_SIZE - 1, maxRow + margin);
+
+      // Collect buildings and player in visible range for correct draw order
+      const buildingsToDraw: { col: number; row: number; loc: MapLocation }[] = [];
+      for (const loc of MAP_LOCATIONS) {
+        if (loc.col >= minCol - 5 && loc.col <= maxCol + 5 && loc.row >= minRow - 5 && loc.row <= maxRow + 5) {
+          buildingsToDraw.push({ col: loc.col, row: loc.row, loc });
+        }
+      }
+
+      // Draw tiles (painter's algorithm: back to front)
+      for (let row = minRow; row <= maxRow; row++) {
+        for (let col = minCol; col <= maxCol; col++) {
+          const chunkX = Math.floor(col / CHUNK_SIZE);
+          const chunkY = Math.floor(row / CHUNK_SIZE);
+          const chunk = getChunk(chunkX, chunkY, seed);
+          const localCol = col % CHUNK_SIZE;
+          const localRow = row % CHUNK_SIZE;
+          const terrain = chunk.terrain[localRow]?.[localCol] ?? TerrainType.DeepWater;
+
+          const [sx, sy] = toScreen(col, row, cam.zoom);
+          const screenX = sx + cx;
+          const screenY = sy + cy;
+
+          if (screenX < -TILE_W * cam.zoom || screenX > w + TILE_W * cam.zoom) continue;
+          if (screenY < -50 * cam.zoom || screenY > h + 50 * cam.zoom) continue;
+
+          const height = getTerrainHeight(terrain);
+          const color = getTileColor(col, row, terrain);
+          const edge = TERRAIN_EDGE_COLORS[terrain];
+          const shadow = TERRAIN_SHADOW_COLORS[terrain];
+
+          drawTile(ctx, screenX, screenY, cam.zoom, color, edge, shadow, Math.max(0, height));
+
+          // Highlight hovered tile
+          if (hoveredTile && hoveredTile[0] === col && hoveredTile[1] === row) {
+            ctx.beginPath();
+            const tw = (TILE_W / 2) * cam.zoom;
+            const th = (TILE_H / 2) * cam.zoom;
+            const hOff = Math.max(0, height) * cam.zoom;
+            ctx.moveTo(screenX, screenY - hOff - th);
+            ctx.lineTo(screenX + tw, screenY - hOff);
+            ctx.lineTo(screenX, screenY - hOff + th);
+            ctx.lineTo(screenX - tw, screenY - hOff);
+            ctx.closePath();
+            ctx.strokeStyle = "#d4a844";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = "rgba(212, 168, 68, 0.15)";
+            ctx.fill();
+          }
+
+          // Draw buildings at this tile position
+          for (const b of buildingsToDraw) {
+            if (b.col === col && b.row === row) {
+              const terrainH = Math.max(0, getTerrainHeight(terrain)) * cam.zoom;
+              drawBuilding(ctx, screenX, screenY - terrainH, cam.zoom, b.loc.building);
+
+              // Name label
+              const isHovered = hoveredLocation?.col === b.loc.col && hoveredLocation?.row === b.loc.row;
+              const isSelected = selectedLocation?.col === b.loc.col && selectedLocation?.row === b.loc.row;
+              if ((isHovered || isSelected) && b.loc.discovered) {
+                const labelFont = Math.max(9, 11 * cam.zoom);
+                ctx.font = `bold ${labelFont}px 'Inter', sans-serif`;
+                ctx.textAlign = "center";
+
+                const text = b.loc.name;
+                const metrics = ctx.measureText(text);
+                const px = 6 * cam.zoom;
+                const py2 = 3 * cam.zoom;
+                const lx = screenX;
+                const ly = screenY - terrainH - 40 * cam.zoom;
+
+                ctx.fillStyle = "rgba(13, 17, 23, 0.9)";
+                ctx.beginPath();
+                ctx.roundRect(lx - metrics.width / 2 - px, ly - labelFont / 2 - py2, metrics.width + px * 2, labelFont + py2 * 2, 4);
+                ctx.fill();
+                ctx.strokeStyle = "rgba(212, 168, 68, 0.5)";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.fillStyle = "#d4a844";
+                ctx.fillText(text, lx, ly);
+
+                ctx.font = `${Math.max(7, 9 * cam.zoom)}px 'Inter', sans-serif`;
+                ctx.fillStyle = "rgba(180, 180, 200, 0.7)";
+                ctx.fillText(b.loc.type.toUpperCase(), lx, ly + labelFont + 2);
+              }
+
+              // Undiscovered fog
+              if (!b.loc.discovered) {
+                ctx.fillStyle = "rgba(13, 17, 23, 0.5)";
+                ctx.beginPath();
+                ctx.arc(screenX, screenY - terrainH - 10 * cam.zoom, 15 * cam.zoom, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.font = `${Math.max(8, 10 * cam.zoom)}px sans-serif`;
+                ctx.textAlign = "center";
+                ctx.fillStyle = "rgba(150,150,170,0.6)";
+                ctx.fillText("?", screenX, screenY - terrainH - 8 * cam.zoom);
+              }
+            }
+          }
+
+          // Draw player at correct depth
+          const pCol = Math.round(player.visualCol);
+          const pRow = Math.round(player.visualRow);
+          if (pCol === col && pRow === row) {
+            const [psx, psy] = toScreen(player.visualCol, player.visualRow, cam.zoom);
+            const playerScreenX = psx + cx;
+            const playerScreenY = psy + cy;
+            const pTerrain = getTerrainAt(pCol, pRow, seed);
+            const pHeight = Math.max(0, getTerrainHeight(pTerrain)) * cam.zoom;
+            drawPlayer(ctx, playerScreenX, playerScreenY - pHeight, cam.zoom, player.direction, timestamp / 1000);
+          }
+        }
+      }
+
+      // === HUD overlays ===
+
+      // Minimap
+      const miniW = 120;
+      const miniH = 120;
+      const miniX = w - miniW - 12;
+      const miniY = 12;
+
+      ctx.fillStyle = "rgba(13, 17, 23, 0.8)";
+      ctx.strokeStyle = "rgba(212, 168, 68, 0.3)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(miniX, miniY, miniW, miniH, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      const viewScale = miniW / MAP_SIZE;
+      const viewCenterCol = (minCol + maxCol) / 2;
+      const viewCenterRow = (minRow + maxRow) / 2;
+      const viewW2 = (maxCol - minCol) * viewScale;
+      const viewH2 = (maxRow - minRow) * viewScale;
+
+      ctx.strokeStyle = "rgba(212, 168, 68, 0.6)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(
+        miniX + viewCenterCol * viewScale - viewW2 / 2,
+        miniY + viewCenterRow * viewScale - viewH2 / 2,
+        viewW2,
+        viewH2
+      );
+
+      // Mini location dots
+      for (const loc of MAP_LOCATIONS) {
+        if (!loc.discovered) continue;
+        const mx = miniX + loc.col * viewScale;
+        const my = miniY + loc.row * viewScale;
+        ctx.beginPath();
+        ctx.arc(mx, my, 2, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(212, 168, 68, 0.5)";
+        ctx.fill();
+      }
+
+      // Player dot on minimap
+      ctx.beginPath();
+      ctx.arc(miniX + player.visualCol * viewScale, miniY + player.visualRow * viewScale, 3, 0, Math.PI * 2);
+      ctx.fillStyle = "#d4a844";
+      ctx.fill();
+
+      // Coordinate display
+      if (hoveredTile) {
+        ctx.font = "11px 'Inter', sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillStyle = "rgba(180, 180, 200, 0.7)";
+        ctx.fillText(`Tile: ${hoveredTile[0]}, ${hoveredTile[1]}`, 12, h - 12);
+      }
+
+      // Player position
+      ctx.font = "11px 'Inter', sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillStyle = "rgba(212, 168, 68, 0.8)";
+      ctx.fillText(`Player: ${player.col}, ${player.row}`, 12, h - 28);
+
+      // Movement hint
+      ctx.font = "10px 'Inter', sans-serif";
+      ctx.fillStyle = "rgba(150, 150, 170, 0.5)";
+      ctx.fillText("WASD / Arrows to move • Click to travel", 12, h - 44);
+
       animFrameRef.current = requestAnimationFrame(loop);
     };
-    loop();
+
+    animFrameRef.current = requestAnimationFrame(loop);
     return () => {
       running = false;
       cancelAnimationFrame(animFrameRef.current);
     };
-  }, [render]);
+  }, [hoveredTile, hoveredLocation, selectedLocation]);
 
   // Mouse handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -438,33 +482,28 @@ export function IsometricCanvas({ className }: Props) {
     if (drag.dragging) {
       const dx = e.clientX - drag.lastX;
       const dy = e.clientY - drag.lastY;
-      cameraRef.current.x += dx;
-      cameraRef.current.y += dy;
+      cameraRef.current.x += dx / cameraRef.current.zoom;
+      cameraRef.current.y += dy / cameraRef.current.zoom;
       drag.lastX = e.clientX;
       drag.lastY = e.clientY;
+      followPlayerRef.current = false;
     }
 
-    // Calculate hovered tile
-    const canvas = canvasRef.current;
     const container = containerRef.current;
-    if (!canvas || !container) return;
-    
+    if (!container) return;
+
     const rect = container.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
     const cam = cameraRef.current;
-    const cx = container.clientWidth / 2 + cam.x;
-    const cy = container.clientHeight / 2 + cam.y;
-    
-    const [col, row] = toTile(mx - cx, my - cy, cam.zoom);
-    
+    const centerX = container.clientWidth / 2 + cam.x * cam.zoom;
+    const centerY = container.clientHeight / 2 + cam.y * cam.zoom;
+
+    const [col, row] = toTile(mx - centerX, my - centerY, cam.zoom);
+
     if (col >= 0 && col < MAP_SIZE && row >= 0 && row < MAP_SIZE) {
       setHoveredTile([col, row]);
-      
-      // Check location hover
-      const loc = MAP_LOCATIONS.find(
-        l => Math.abs(l.col - col) < 4 && Math.abs(l.row - row) < 4
-      );
+      const loc = MAP_LOCATIONS.find(l => Math.abs(l.col - col) < 4 && Math.abs(l.row - row) < 4);
       setHoveredLocation(loc || null);
     } else {
       setHoveredTile(null);
@@ -486,32 +525,57 @@ export function IsometricCanvas({ className }: Props) {
     e.preventDefault();
     const cam = cameraRef.current;
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.2, Math.min(3, cam.zoom * delta));
-    cam.zoom = newZoom;
+    cam.zoom = Math.max(0.2, Math.min(3, cam.zoom * delta));
   }, []);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
-    if (hoveredLocation) {
-      setSelectedLocation(
-        selectedLocation?.col === hoveredLocation.col && selectedLocation?.row === hoveredLocation.row
-          ? null
-          : hoveredLocation
-      );
-    } else {
-      setSelectedLocation(null);
-    }
-  }, [hoveredLocation, selectedLocation]);
+    const container = containerRef.current;
+    if (!container) return;
 
-  // Center on player
+    const rect = container.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const cam = cameraRef.current;
+    const centerX = container.clientWidth / 2 + cam.x * cam.zoom;
+    const centerY = container.clientHeight / 2 + cam.y * cam.zoom;
+
+    const [col, row] = toTile(mx - centerX, my - centerY, cam.zoom);
+
+    if (col >= 0 && col < MAP_SIZE && row >= 0 && row < MAP_SIZE) {
+      // Check if clicking a location
+      const loc = MAP_LOCATIONS.find(l => Math.abs(l.col - col) < 4 && Math.abs(l.row - row) < 4);
+      if (loc) {
+        setSelectedLocation(
+          selectedLocation?.col === loc.col && selectedLocation?.row === loc.row ? null : loc
+        );
+      } else {
+        setSelectedLocation(null);
+      }
+
+      // Click-to-move: set target if walkable
+      if (isWalkable(getTerrainAt(col, row, seed))) {
+        playerRef.current = {
+          ...playerRef.current,
+          targetCol: col,
+          targetRow: row,
+          moving: true,
+        };
+        followPlayerRef.current = true;
+      }
+    }
+  }, [selectedLocation]);
+
   const centerOnPlayer = useCallback(() => {
-    const [px, py] = toScreen(PLAYER_POSITION.col, PLAYER_POSITION.row, 1);
+    const player = playerRef.current;
+    const [px, py] = toScreen(player.visualCol, player.visualRow, 1);
     cameraRef.current.x = -px;
     cameraRef.current.y = -py;
     cameraRef.current.zoom = 0.8;
+    followPlayerRef.current = true;
   }, []);
 
   return (
-    <div ref={containerRef} className={`relative w-full h-full ${className ?? ""}`}>
+    <div ref={containerRef} className={`relative w-full h-full ${className ?? ""}`} tabIndex={0}>
       <canvas
         ref={canvasRef}
         className="absolute inset-0 cursor-grab active:cursor-grabbing"
@@ -547,11 +611,10 @@ export function IsometricCanvas({ className }: Props) {
         </button>
       </div>
 
-      {/* Selected location info panel */}
+      {/* Selected location info */}
       {selectedLocation && selectedLocation.discovered && (
         <div className="absolute bottom-4 left-4 glass-panel p-4 rounded-lg z-10 max-w-xs">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-xl">{selectedLocation.icon}</span>
             <div>
               <h3 className="font-cinzel text-sm text-primary">{selectedLocation.name}</h3>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{selectedLocation.type}</p>
@@ -560,7 +623,23 @@ export function IsometricCanvas({ className }: Props) {
           <p className="text-xs text-muted-foreground">
             Position: ({selectedLocation.col}, {selectedLocation.row})
           </p>
-          <button className="mt-2 w-full glass-panel px-3 py-1.5 text-xs text-primary hover:bg-primary/10 transition-colors rounded">
+          <p className="text-xs text-muted-foreground">
+            Distance: {Math.round(Math.sqrt(Math.pow(selectedLocation.col - playerPos.col, 2) + Math.pow(selectedLocation.row - playerPos.row, 2)))} blocks
+          </p>
+          <button
+            onClick={() => {
+              if (isWalkable(getTerrainAt(selectedLocation.col, selectedLocation.row, seed))) {
+                playerRef.current = {
+                  ...playerRef.current,
+                  targetCol: selectedLocation.col,
+                  targetRow: selectedLocation.row,
+                  moving: true,
+                };
+                followPlayerRef.current = true;
+              }
+            }}
+            className="mt-2 w-full glass-panel px-3 py-1.5 text-xs text-primary hover:bg-primary/10 transition-colors rounded"
+          >
             Travel Here
           </button>
         </div>
