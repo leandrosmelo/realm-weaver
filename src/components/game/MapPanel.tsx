@@ -12,7 +12,7 @@ export function MapPanel() {
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <MapPin className="w-3.5 h-3.5 text-primary" />
-          <span>Elderwood Village</span>
+          <span>Exploring</span>
           <span className="text-muted-foreground/50">•</span>
           <span className="text-[10px]">500×500 blocks</span>
         </div>
